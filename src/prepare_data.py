@@ -1,13 +1,16 @@
 """
-Skrypt do przygotowania danych Titanic.
+Skrypt do przygotowania danych Penguins.
 
 Wykonuje czyszczenie danych, uzupelnianie brakujacych wartosci,
 kodowanie zmiennych kategorycznych oraz podzial na zbiory treningowy i testowy.
 """
 
 import yaml
+import pickle
+import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
 
 
 def main():
@@ -19,47 +22,49 @@ def main():
     random_state = params["prepare"]["random_state"]
 
     # Wczytanie surowych danych
-    print("Wczytywanie danych z data/titanic.csv...")
-    df = pd.read_csv("data/titanic.csv")
+    print("Wczytywanie danych z data/penguins.csv...")
+    df = pd.read_csv("data/penguins.csv")
     print(f"Wczytano {len(df)} rekordow.")
 
-    # Usuniecie kolumn, ktore nie sa przydatne do modelowania
-    kolumny_do_usuniecia = ["name", "ticket", "cabin", "body", "boat", "home.dest"]
-    df = df.drop(columns=kolumny_do_usuniecia)
-    print(f"Usunieto kolumny: {kolumny_do_usuniecia}")
+    df = df.dropna();
+    print("Zdropowano rekordy z brakującymi danymi.")
 
-    # Uzupelnienie brakujacych wartosci
-    # - wiek: mediana
-    # - oplata: mediana
-    # - port zaokretowania: wartosc najczestsza (moda)
-    df["age"] = df["age"].fillna(df["age"].median())
-    df["fare"] = df["fare"].fillna(df["fare"].median())
-    df["embarked"] = df["embarked"].fillna(df["embarked"].mode()[0])
-    print("Uzupelniono brakujace wartosci (age, fare, embarked).")
+    # Oddzielenie kolumn kategorycznych i numerycznych
+    categorical_cols = ["island", "sex"]
+    num_cols = ["culmen_length_mm", "culmen_depth_mm", "flipper_length_mm", "body_mass_g"]
 
-    # Kodowanie zmiennej plec: male=0, female=1
-    df["sex"] = df["sex"].map({"male": 0, "female": 1}).astype(int)
+    # 1️⃣ Fit i transformacja encodera
+    encoder = OneHotEncoder(drop="first", handle_unknown="ignore")
+    X_cat = encoder.fit_transform(df[categorical_cols])
 
-    # Kodowanie one-hot dla portu zaokretowania (z usunieciem pierwszej kategorii)
-    df = pd.get_dummies(df, columns=["embarked"], drop_first=True)
-    print("Zakodowano zmienne kategoryczne (sex, embarked).")
-
-    # Konwersja zmiennej docelowej na typ calkowity
-    df["survived"] = df["survived"].astype(int)
-
-    # Podzial na zbiory treningowy i testowy
-    train_df, test_df = train_test_split(
-        df, test_size=test_size, random_state=random_state
-    )
-    print(
-        f"Podzielono dane: {len(train_df)} treningowych, "
-        f"{len(test_df)} testowych (test_size={test_size})."
+    # 2️⃣ Zamiana na DataFrame z odpowiednimi nazwami kolumn
+    X_cat_df = pd.DataFrame(
+        X_cat.toarray(),
+        columns=encoder.get_feature_names_out(categorical_cols)
     )
 
-    train_df.to_csv("data/train.csv", index=False)
-    test_df.to_csv("data/test.csv", index=False)
+    # 3️⃣ Połączenie z kolumnami numerycznymi
+    df_encoded = pd.concat([df[num_cols].reset_index(drop=True), X_cat_df], axis=1)
+
+    # 4️⃣ Cel modelu (gatunek)
+    y = df["species"]
+
+    # 5️⃣ Podział na zbiór treningowy i testowy
+    X_train, X_test, y_train, y_test = train_test_split(
+        df_encoded, y, test_size=test_size, random_state=random_state, stratify=y
+    )
+
+    # 6️⃣ Zapisanie danych i encodera
+    X_train.to_csv("data/train.csv", index=False)
+    X_test.to_csv("data/test.csv", index=False)
     print("Zapisano data/train.csv i data/test.csv.")
 
+
+    # Utworzenie katalogu na dane, jesli nie istnieje
+    os.makedirs("models", exist_ok=True)
+    with open("models/encoder.pkl", "wb") as f:
+        pickle.dump(encoder, f)
+    print("Zapisano encoder.pkl")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,45 @@
+schema: '2.0'
+stages:
+  download_data:
+    cmd: python src/download_data.py
+    deps:
+    - path: src/download_data.py
+      hash: md5
+      md5: 0a81747de3df34e0f33100af7e2282fb
+      size: 823
+    params:
+      params.yaml:
+        data.dataset_id: 42585
+    outs:
+    - path: data/penguins.csv
+      hash: md5
+      md5: 0e93dddcd52d61c047e54761abde1334
+      size: 15015
+  prepare_data:
+    cmd: python src/prepare_data.py
+    deps:
+    - path: data/penguins.csv
+      hash: md5
+      md5: 0e93dddcd52d61c047e54761abde1334
+      size: 15015
+    - path: src/prepare_data.py
+      hash: md5
+      md5: 3ec93fe4363231c73a926aa07d9250c9
+      size: 3019
+    params:
+      params.yaml:
+        prepare.random_state: 42
+        prepare.test_size: 0.2
+    outs:
+    - path: data/test.csv
+      hash: md5
+      md5: 303cfe4cca5648a784b058381677a11f
+      size: 2721
+    - path: data/train.csv
+      hash: md5
+      md5: 656e7a1e1d8f3f5d04776f77977bb67a
+      size: 10521
+    - path: models/encoder.pkl
+      hash: md5
+      md5: 597d45d2b9adfd6176032bf53160fb0a
+      size: 713
