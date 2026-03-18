@@ -21,18 +21,19 @@ stages:
       - data/test.csv
       - models/encoder.pkl
 
-  # train_model:
-  #   cmd: python src/train_model.py
-  #   deps:
-  #     - src/train_model.py
-  #     - data/train.csv
-  #     - data/test.csv
-  #   params:
-  #     - model.n_estimators
-  #     - model.max_depth
-  #     - model.random_state
-  #   outs:
-  #     - models/model.pkl
-  #   metrics:
-  #     - metrics.json:
-  #         cache: false
+  train_model:
+    cmd: python src/train_model.py
+    deps:
+      - src/train_model.py
+      - data/train.csv
+      - data/test.csv
+    params:
+      - model.n_estimators
+      - model.max_depth
+      - model.min_samples_split
+      - model.min_samples_leaf
+    outs:
+      - models/model.pkl
+    # metrics:
+    #   - metrics.json:
+    #       cache: false

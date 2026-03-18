@@ -1,8 +1,6 @@
 """
 Skrypt do przygotowania danych Penguins.
 
-Wykonuje czyszczenie danych, uzupelnianie brakujacych wartosci,
-kodowanie zmiennych kategorycznych oraz podzial na zbiory treningowy i testowy.
 """
 
 import yaml
@@ -29,34 +27,51 @@ def main():
     df = df.dropna();
     print("Zdropowano rekordy z brakującymi danymi.")
 
-    # Oddzielenie kolumn kategorycznych i numerycznych
+    # 1 Oddzielenie cech od zmiennej docelowej (gatunek)
+    X = df.drop(columns=["species"])
+    y = df["species"]
+
+    # 2 Podział na zbiory treningowy i testowy
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=y
+    )
+
+    # 3 Oddzielenie kolumn kategorycznych i numerycznych
     categorical_cols = ["island", "sex"]
     num_cols = ["culmen_length_mm", "culmen_depth_mm", "flipper_length_mm", "body_mass_g"]
 
-    # 1️⃣ Fit i transformacja encodera
+    # 4 Fit i transformacja encodera
+    # do wykonania po podziale na train/test bo to leakage inaczej
     encoder = OneHotEncoder(drop="first", handle_unknown="ignore")
-    X_cat = encoder.fit_transform(df[categorical_cols])
+    X_train_cat = encoder.fit_transform(X_train[categorical_cols])
 
-    # 2️⃣ Zamiana na DataFrame z odpowiednimi nazwami kolumn
-    X_cat_df = pd.DataFrame(
-        X_cat.toarray(),
+    X_test_cat = encoder.transform(X_test[categorical_cols])
+
+    # 5 Zamiana na DataFrame z odpowiednimi nazwami kolumn
+    X_train_cat_df = pd.DataFrame(
+        X_train_cat.toarray(),
         columns=encoder.get_feature_names_out(categorical_cols)
     )
 
-    # 3️⃣ Połączenie z kolumnami numerycznymi
-    df_encoded = pd.concat([df[num_cols].reset_index(drop=True), X_cat_df], axis=1)
-
-    # 4️⃣ Cel modelu (gatunek)
-    y = df["species"]
-
-    # 5️⃣ Podział na zbiór treningowy i testowy
-    X_train, X_test, y_train, y_test = train_test_split(
-        df_encoded, y, test_size=test_size, random_state=random_state, stratify=y
+    X_test_cat_df = pd.DataFrame(
+        X_test_cat.toarray(),
+        columns=encoder.get_feature_names_out(categorical_cols)
     )
 
+    # # 3️⃣ Połączenie z kolumnami numerycznymi
+    df_train_encoded = pd.concat([X_train[num_cols].reset_index(drop=True), X_train_cat_df], axis=1)
+    df_test_encoded = pd.concat([X_test[num_cols].reset_index(drop=True), X_test_cat_df], axis=1)
+
+    # Zachowujemy target w plikach CSV, bo etap trenowania odczytuje go z train/test.csv.
+    train_df = df_train_encoded.reset_index(drop=True)
+    train_df["species"] = y_train.reset_index(drop=True)
+
+    test_df = df_test_encoded.reset_index(drop=True)
+    test_df["species"] = y_test.reset_index(drop=True)
+
     # 6️⃣ Zapisanie danych i encodera
-    X_train.to_csv("data/train.csv", index=False)
-    X_test.to_csv("data/test.csv", index=False)
+    train_df.to_csv("data/train.csv", index=False)
+    test_df.to_csv("data/test.csv", index=False)
     print("Zapisano data/train.csv i data/test.csv.")
 
 

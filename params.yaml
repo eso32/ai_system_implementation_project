@@ -6,6 +6,7 @@ prepare:
   random_state: 42
 
 model:
-  n_estimators: 50
-  max_depth: 10
-  random_state: 42
+  n_estimators: 200
+  max_depth: 5
+  min_samples_split: 4
+  min_samples_leaf: 2

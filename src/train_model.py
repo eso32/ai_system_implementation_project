@@ -1,5 +1,5 @@
 """
-Skrypt do trenowania modelu Random Forest na danych Titanic.
+Skrypt do trenowania modelu Random Forest na danych Penguins.
 
 Wczytuje dane treningowe i testowe, trenuje klasyfikator lasu losowego
 z parametrami z pliku params.yaml, zapisuje model oraz metryki.
@@ -13,7 +13,9 @@ import yaml
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
+import mlflow
 
+mlflow.set_experiment("palmer_penguins")
 
 def main():
     # Wczytanie parametrow modelu z pliku konfiguracyjnego
@@ -22,7 +24,8 @@ def main():
 
     n_estimators = params["model"]["n_estimators"]
     max_depth = params["model"]["max_depth"]
-    random_state = params["model"]["random_state"]
+    min_samples_split = params["model"]["min_samples_split"]
+    min_samples_leaf = params["model"]["min_samples_leaf"]
 
     # Wczytanie zbiorow treningowego i testowego
     print("Wczytywanie danych treningowych i testowych...")
@@ -30,7 +33,7 @@ def main():
     test_df = pd.read_csv("data/test.csv")
 
     # Rozdzielenie cech (X) od zmiennej docelowej (y)
-    target_col = "survived"
+    target_col = "species"
     X_train = train_df.drop(columns=[target_col])
     y_train = train_df[target_col]
     X_test = test_df.drop(columns=[target_col])
@@ -42,18 +45,38 @@ def main():
     )
     print(f"Zbior testowy: {X_test.shape[0]} probek.")
 
-    # Trenowanie klasyfikatora lasu losowego
-    print(
-        f"Trenowanie RandomForestClassifier "
-        f"(n_estimators={n_estimators}, max_depth={max_depth})..."
-    )
-    model = RandomForestClassifier(
-        n_estimators=n_estimators,
-        max_depth=max_depth,
-        random_state=random_state,
-    )
-    model.fit(X_train, y_train)
-    print("Model wytrenowany pomyslnie.")
+
+    with mlflow.start_run():
+        params = { "n_estimators": n_estimators }
+        # Trenowanie klasyfikatora lasu losowego
+        print(
+            f"Trenowanie RandomForestClassifier "
+            f"(n_estimators={n_estimators}, max_depth={max_depth}, min_samples_split={min_samples_split}, min_samples_leaf={min_samples_leaf})..."
+        )
+        model = RandomForestClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            random_state=42,
+        )
+        mlflow.log_params(params);
+        model.fit(X_train, y_train)
+        
+        for features, target, d_name in [(X_train, y_train, "train"), (X_test, y_test, "test")]:
+            # Obliczenie metryk na zbiorze testowym
+            y_pred = model.predict(features)
+            accuracy = accuracy_score(target, y_pred)
+            f1 = f1_score(target, y_pred, average="weighted")
+            mlflow.log_metric(f"{d_name}_f1", f1)
+            mlflow.log_metric(f"{d_name}_accuracy", accuracy)
+
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            input_example=X_train
+        )
+
+        print("Model wytrenowany pomyslnie.")
 
     # Utworzenie katalogu na modele, jesli nie istnieje
     os.makedirs("models", exist_ok=True)
@@ -64,23 +87,17 @@ def main():
         pickle.dump(model, f)
     print(f"Model zapisany do: {model_path}")
 
-    # Obliczenie metryk na zbiorze testowym
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
 
-    print(f"Dokladnosc (accuracy): {accuracy:.4f}")
-    print(f"Miara F1 (f1_score):   {f1:.4f}")
 
-    # Zapis metryk do pliku JSON
-    metrics = {
-        "accuracy": round(accuracy, 4),
-        "f1_score": round(f1, 4),
-    }
+    # # Zapis metryk do pliku JSON
+    # metrics = {
+    #     "accuracy": round(accuracy, 4),
+    #     "f1_score": round(f1, 4),
+    # }
 
-    with open("metrics.json", "w") as f:
-        json.dump(metrics, f, indent=2)
-    print("Metryki zapisane do: metrics.json")
+    # with open("metrics.json", "w") as f:
+    #     json.dump(metrics, f, indent=2)
+    # print("Metryki zapisane do: metrics.json")
 
 
 if __name__ == "__main__":

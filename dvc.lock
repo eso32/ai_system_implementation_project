@@ -24,8 +24,8 @@ stages:
       size: 15015
     - path: src/prepare_data.py
       hash: md5
-      md5: 39dddc0ad562b0deb85ce69128483179
-      size: 2221
+      md5: 3f6ba54f53e74c724298aedf25b94672
+      size: 2829
     params:
       params.yaml:
         prepare.random_state: 42
@@ -33,13 +33,39 @@ stages:
     outs:
     - path: data/test.csv
       hash: md5
-      md5: 303cfe4cca5648a784b058381677a11f
-      size: 2721
+      md5: 3ce0a57895a56d74e717c998a624bccd
+      size: 3240
     - path: data/train.csv
       hash: md5
-      md5: 656e7a1e1d8f3f5d04776f77977bb67a
-      size: 10521
+      md5: 5ee9b837755d417faf910402f90b90ae
+      size: 12560
     - path: models/encoder.pkl
       hash: md5
       md5: 597d45d2b9adfd6176032bf53160fb0a
       size: 713
+  train_model:
+    cmd: python src/train_model.py
+    deps:
+    - path: data/test.csv
+      hash: md5
+      md5: 3ce0a57895a56d74e717c998a624bccd
+      size: 3240
+    - path: data/train.csv
+      hash: md5
+      md5: 5ee9b837755d417faf910402f90b90ae
+      size: 12560
+    - path: src/train_model.py
+      hash: md5
+      md5: a569a313f2678c332349ec5c4483cfaf
+      size: 3279
+    params:
+      params.yaml:
+        model.max_depth: 5
+        model.min_samples_leaf: 2
+        model.min_samples_split: 4
+        model.n_estimators: 200
+    outs:
+    - path: models/model.pkl
+      hash: md5
+      md5: 49c643bb16b764eb31752656d91548d4
+      size: 409185
