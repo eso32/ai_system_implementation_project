@@ -12,88 +12,76 @@ import pickle
 import yaml
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import f1_score
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+from optuna.integration.mlflow import MLflowCallback
 import mlflow
-
-mlflow.set_experiment("palmer_penguins")
+import optuna
 
 def main():
-    # Wczytanie parametrow modelu z pliku konfiguracyjnego
-    with open("params.yaml", "r") as f:
-        params = yaml.safe_load(f)
-
-    n_estimators = params["model"]["n_estimators"]
-    max_depth = params["model"]["max_depth"]
-    min_samples_split = params["model"]["min_samples_split"]
-    min_samples_leaf = params["model"]["min_samples_leaf"]
-
-    # Wczytanie zbiorow treningowego i testowego
-    print("Wczytywanie danych treningowych i testowych...")
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    experiment_name = "palmer_penguins_3"
     train_df = pd.read_csv("data/train.csv")
     test_df = pd.read_csv("data/test.csv")
 
-    # Rozdzielenie cech (X) od zmiennej docelowej (y)
     target_col = "species"
     X_train = train_df.drop(columns=[target_col])
     y_train = train_df[target_col]
     X_test = test_df.drop(columns=[target_col])
     y_test = test_df[target_col]
 
-    print(
-        f"Zbior treningowy: {X_train.shape[0]} probek, "
-        f"{X_train.shape[1]} cech."
-    )
-    print(f"Zbior testowy: {X_test.shape[0]} probek.")
+    def objective(trial):
+        print("### Trenowanie RandomForestClassifier")
+        params = {
+            "n_estimators": trial.suggest_int("n_estimators", 100, 300, step=2),
+            "max_depth": trial.suggest_int("max_depth", 2, 5),
+            "min_samples_split": trial.suggest_int("min_samples_split", 3, 8),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 3),
+        }
 
-
-    with mlflow.start_run():
-        params = { "n_estimators": n_estimators }
-        # Trenowanie klasyfikatora lasu losowego
-        print(
-            f"Trenowanie RandomForestClassifier "
-            f"(n_estimators={n_estimators}, max_depth={max_depth}, min_samples_split={min_samples_split}, min_samples_leaf={min_samples_leaf})..."
-        )
         model = RandomForestClassifier(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            min_samples_split=min_samples_split,
-            min_samples_leaf=min_samples_leaf,
+            n_estimators=params["n_estimators"],
+            max_depth=params["max_depth"],
+            min_samples_split=params["min_samples_split"],
+            min_samples_leaf=params["min_samples_leaf"],
             random_state=42,
         )
-        mlflow.log_params(params);
-        model.fit(X_train, y_train)
         
-        for features, target, d_name in [(X_train, y_train, "train"), (X_test, y_test, "test")]:
-            # Obliczenie metryk na zbiorze testowym
-            y_pred = model.predict(features)
-            accuracy = accuracy_score(target, y_pred)
-            f1 = f1_score(target, y_pred, average="weighted")
-            mlflow.log_metric(f"{d_name}_f1", f1)
-            mlflow.log_metric(f"{d_name}_accuracy", accuracy)
+        scores = cross_val_score(model, X_train, y_train, cv=5, scoring="f1_weighted")
+        return scores.mean()
+        
+    mlflow_callback = MLflowCallback(
+        tracking_uri=mlflow.get_tracking_uri(),
+        metric_name="f1",
+    )
 
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            input_example=X_train
-        )
+    study = optuna.create_study(study_name=experiment_name, direction="maximize")
+    study.optimize(objective, n_trials=15, callbacks=[mlflow_callback])
 
-        print("Model wytrenowany pomyslnie.")
+    print(f"### BEST PARAMS: {study.best_params}")  # E.g. {'x': 2.002108042}
+    
+    mlflow.set_experiment(experiment_name)
+    best_model = RandomForestClassifier(**study.best_params, random_state=42)
+    best_model.fit(X_train, y_train)
 
-    # Utworzenie katalogu na modele, jesli nie istnieje
     os.makedirs("models", exist_ok=True)
-
-    # Zapis modelu do pliku za pomoca pickle
     model_path = "models/model.pkl"
     with open(model_path, "wb") as f:
-        pickle.dump(model, f)
+        pickle.dump(best_model, f)
     print(f"Model zapisany do: {model_path}")
 
 
 
-    # # Zapis metryk do pliku JSON
-    # metrics = {
-    #     "accuracy": round(accuracy, 4),
-    #     "f1_score": round(f1, 4),
-    # }
+    # with mlflow.start_run("Best model"):
+    #     y_pred = best_model.predict(X_test)
+    #     f1 = f1_score(y_test, y_pred)
+    #     mlflow.log_metric('f1', f1)
+
+
+    #     # Zapis metryk do pliku JSON
+    #     metrics = {
+    #         "f1_score": round(f1, 4),
+    #     }
 
     # with open("metrics.json", "w") as f:
     #     json.dump(metrics, f, indent=2)

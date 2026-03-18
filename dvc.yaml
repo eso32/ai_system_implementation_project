@@ -27,13 +27,13 @@ stages:
       - src/train_model.py
       - data/train.csv
       - data/test.csv
-    params:
-      - model.n_estimators
-      - model.max_depth
-      - model.min_samples_split
-      - model.min_samples_leaf
-    outs:
-      - models/model.pkl
+    # params:
+    #   - model.n_estimators
+    #   - model.max_depth
+    #   - model.min_samples_split
+    #   - model.min_samples_leaf
+    # outs:
+    #   - models/model.pkl
     # metrics:
     #   - metrics.json:
     #       cache: false
