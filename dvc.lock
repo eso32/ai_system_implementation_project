@@ -29,16 +29,16 @@ stages:
     params:
       params.yaml:
         prepare.random_state: 42
-        prepare.test_size: 0.2
+        prepare.test_size: 0.01
     outs:
     - path: data/test.csv
       hash: md5
-      md5: 3ce0a57895a56d74e717c998a624bccd
-      size: 3240
+      md5: cd9ddd1ab5f8c06b9ee46cf4c994bdf6
+      size: 303
     - path: data/train.csv
       hash: md5
-      md5: 5ee9b837755d417faf910402f90b90ae
-      size: 12560
+      md5: f5d5dc7c99c2b69cc00f246db5ef461c
+      size: 15497
     - path: models/encoder.pkl
       hash: md5
       md5: 597d45d2b9adfd6176032bf53160fb0a
@@ -48,13 +48,54 @@ stages:
     deps:
     - path: data/test.csv
       hash: md5
-      md5: 3ce0a57895a56d74e717c998a624bccd
-      size: 3240
+      md5: cd9ddd1ab5f8c06b9ee46cf4c994bdf6
+      size: 303
     - path: data/train.csv
       hash: md5
-      md5: 5ee9b837755d417faf910402f90b90ae
-      size: 12560
+      md5: f5d5dc7c99c2b69cc00f246db5ef461c
+      size: 15497
     - path: src/train_model.py
       hash: md5
-      md5: 577875e3d01dc4169a0ceff1cbbb8cb5
-      size: 2870
+      md5: b5fe19e0594109b91f7fdd936c0dcbf1
+      size: 2320
+    params:
+      params.yaml:
+        experiment.name: palmer_penguins_4
+    outs:
+    - path: models/model.pkl
+      hash: md5
+      md5: 9365a4e63939082e62f1c267767ecb78
+      size: 518887
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: models/model.pkl
+      hash: md5
+      md5: 9365a4e63939082e62f1c267767ecb78
+      size: 518887
+    - path: src/evaluate.py
+      hash: md5
+      md5: 217d4795cc6bfede40a0be1d86587066
+      size: 1633
+    params:
+      params.yaml:
+        experiment.name: palmer_penguins_4
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: c5397b55b58cce52cec80ed489f452c1
+      size: 46
+  register_bentoml:
+    cmd: python src/register_bentoml.py
+    deps:
+    - path: models/model.pkl
+      hash: md5
+      md5: 9365a4e63939082e62f1c267767ecb78
+      size: 518887
+    - path: src/register_bentoml.py
+      hash: md5
+      md5: 8f11c846a89e833cd5511616bb44ee47
+      size: 1203
+    params:
+      params.yaml:
+        experiment.name: palmer_penguins_4

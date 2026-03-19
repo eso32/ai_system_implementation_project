@@ -1,0 +1,16 @@
+service: "service:PenguinsService"
+description: "Klasyfikator pingwinów (scikit-learn)"
+labels:
+  owner: SGGW
+  project: penguins_bentoml
+include:
+  - "*.py"
+python:
+  packages:
+    - scikit-learn
+    - numpy
+    - pandas
+    - pydantic
+models:
+  - penguins_classifier:latest
+  - penguins_encoder:latest

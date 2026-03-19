@@ -2,11 +2,8 @@ data:
   dataset_id: 42585
 
 prepare:
-  test_size: 0.2
+  test_size: 0.01
   random_state: 42
 
-model:
-  n_estimators: 200
-  max_depth: 5
-  min_samples_split: 4
-  min_samples_leaf: 2
+experiment:
+  name: palmer_penguins_4

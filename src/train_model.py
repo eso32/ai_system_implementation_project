@@ -19,19 +19,17 @@ import mlflow
 import optuna
 
 def main():
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    experiment_name = "palmer_penguins_3"
+    with open("params.yaml", "r") as f:
+        params = yaml.safe_load(f)
+
+    experiment_name = params["experiment"]["name"]
     train_df = pd.read_csv("data/train.csv")
-    test_df = pd.read_csv("data/test.csv")
 
     target_col = "species"
     X_train = train_df.drop(columns=[target_col])
     y_train = train_df[target_col]
-    X_test = test_df.drop(columns=[target_col])
-    y_test = test_df[target_col]
 
     def objective(trial):
-        print("### Trenowanie RandomForestClassifier")
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 100, 300, step=2),
             "max_depth": trial.suggest_int("max_depth", 2, 5),
@@ -56,9 +54,9 @@ def main():
     )
 
     study = optuna.create_study(study_name=experiment_name, direction="maximize")
-    study.optimize(objective, n_trials=15, callbacks=[mlflow_callback])
+    study.optimize(objective, n_trials=20, callbacks=[mlflow_callback])
 
-    print(f"### BEST PARAMS: {study.best_params}")  # E.g. {'x': 2.002108042}
+    print(f"### BEST PARAMS: {study.best_params}")
     
     mlflow.set_experiment(experiment_name)
     best_model = RandomForestClassifier(**study.best_params, random_state=42)
@@ -72,20 +70,7 @@ def main():
 
 
 
-    # with mlflow.start_run("Best model"):
-    #     y_pred = best_model.predict(X_test)
-    #     f1 = f1_score(y_test, y_pred)
-    #     mlflow.log_metric('f1', f1)
 
-
-    #     # Zapis metryk do pliku JSON
-    #     metrics = {
-    #         "f1_score": round(f1, 4),
-    #     }
-
-    # with open("metrics.json", "w") as f:
-    #     json.dump(metrics, f, indent=2)
-    # print("Metryki zapisane do: metrics.json")
 
 
 if __name__ == "__main__":

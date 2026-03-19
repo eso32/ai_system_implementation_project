@@ -27,13 +27,26 @@ stages:
       - src/train_model.py
       - data/train.csv
       - data/test.csv
-    # params:
-    #   - model.n_estimators
-    #   - model.max_depth
-    #   - model.min_samples_split
-    #   - model.min_samples_leaf
-    # outs:
-    #   - models/model.pkl
-    # metrics:
-    #   - metrics.json:
-    #       cache: false
+    params:
+      - experiment.name
+    outs:
+      - models/model.pkl
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - models/model.pkl
+    params:
+      - experiment.name
+    metrics:
+      - metrics.json:
+          cache: false
+
+  register_bentoml:
+    cmd: python src/register_bentoml.py
+    deps:
+      - src/register_bentoml.py
+      - models/model.pkl
+    params:
+      - experiment.name
