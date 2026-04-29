@@ -1,0 +1,17 @@
+[project]
+name = "ai-system-implementation-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bentoml>=1.4.38",
+    "dvc[all]>=3.67.1",
+    "mlflow>=2.22.1",
+    "numpy>=2.0",
+    "optuna>=4.8.0",
+    "optuna-integration[mlflow]>=4.8.0",
+    "pandas>=2.0,<3",
+    "protobuf>=3.20,<4",
+    "scikit-learn>=1.8.0",
+]
